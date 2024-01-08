@@ -7,6 +7,7 @@ pub enum Language {
     Python,
     Generic,
     Toml,
+    Go,
 }
 
 impl std::fmt::Display for Language {
@@ -19,6 +20,7 @@ impl std::fmt::Display for Language {
             Language::Json => "JSON",
             Language::Python => "Python",
             Language::Toml=> "TOML",
+            Language::Go => "GO",
         };
         write!(f, "{this}")
     }

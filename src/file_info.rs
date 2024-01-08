@@ -43,7 +43,9 @@ impl FileInfo {
 pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator + Send> {
     match language {
         Language::Rust => Box::new(GenericWithComment::new("//")),
-        Language::C | Language::Js => Box::new(MultilineCommentAware::new("//", ["/*", "*/"])),
+        Language::C | Language::Js | Language::Go => {
+            Box::new(MultilineCommentAware::new("//", ["/*", "*/"]))
+        }
         Language::Generic | Language::Json => Box::new(Generic),
         Language::Python => Box::new(GenericWithComment::new("#")),
         Language::Toml => Box::new(GenericWithComment::new("#")),

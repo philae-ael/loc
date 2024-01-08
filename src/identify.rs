@@ -22,6 +22,7 @@ pub fn identify(path: &Path) -> Language {
         by_extension!(Language::Js, js);
         by_extension!(Language::Json, json);
         by_extension!(Language::Toml, toml);
+        by_extension!(Language::Go, go);
     }
 
     Language::Generic
