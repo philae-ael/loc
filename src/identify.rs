@@ -23,6 +23,23 @@ pub fn identify(path: &Path) -> Language {
         by_extension!(Language::Json, json);
         by_extension!(Language::Toml, toml);
         by_extension!(Language::Go, go);
+        by_extension!(Language::Csv, csv);
+        by_extension!(Language::Yaml, yaml);
+        by_extension!(Language::Scss, scss);
+        by_extension!(Language::VueJs, vue);
+        by_extension!(Language::Markdown, md);
+    }
+
+    if let Some(filename) = path.file_name().and_then(|x| x.to_str()) {
+        macro_rules! by_filename {
+            ($lang:expr, $($id:ident),+) => {
+                if [$(stringify!($id)),*].iter().any(|x| &filename == x) {
+                    return $lang;
+                }
+            };
+        }
+
+        by_filename!(Language::Dockerfile, Dockerfile);
     }
 
     Language::Generic

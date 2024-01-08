@@ -92,7 +92,7 @@ where
             BOX_CROSS_DOWN,
             BOX_CROSS_RIGHT_DOWN,
         )?;
-        
+
         write!(f, "{BOX_VERT}{: ^1$}", table_descriptor.key.name, pads[0])?;
         for (entry, pad) in table_descriptor.v.iter().zip(pads[1..].iter().copied()) {
             write!(f, "{BOX_VERT}{: ^1$}", entry.name, pad)?;
