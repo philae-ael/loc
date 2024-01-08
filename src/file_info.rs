@@ -8,12 +8,12 @@ use crate::{
 
 #[derive(Debug, Default, Clone)]
 pub struct FileInfo {
-    total: usize,
-    code: usize,
-    comments: usize,
-    empty: usize,
+    pub total: usize,
+    pub code: usize,
+    pub comments: usize,
+    pub empty: usize,
     // Number of files for this FileInfo struct
-    file_count: usize,
+    pub file_count: usize,
 }
 
 // WARNING: default and are not he same: default is the monoid identity, while new is now: it
