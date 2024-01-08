@@ -119,9 +119,9 @@ impl<T: 'static, Key: 'static> TableDescriptorBuilder<T, Key> {
         match &self.key {
             Some(x) => {
                 let out = format!("{}", getter(x));
-                self.column(name, move |_| out)
+                self.column_with_format(name, TableFormat::Center, move |_| out)
             }
-            None => self.column(name, move |_| name),
+            None => self.column_with_format(name, TableFormat::Center, move |_| name),
         }
     }
 

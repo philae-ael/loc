@@ -3,7 +3,11 @@ use std::path::Path;
 use crate::language::Language;
 
 pub fn identify(path: &Path) -> Language {
-    if let Some(extension) = path.extension().and_then(|x| x.to_str()) {
+    if let Some(extension) = path
+        .extension()
+        .and_then(|x| x.to_str())
+        .map(|x| x.to_lowercase())
+    {
         macro_rules! by_extension {
             ($lang:expr, $($id:ident),+) => {
                 if [$(stringify!($id)),*].iter().any(|x| &extension == x) {
@@ -17,6 +21,7 @@ pub fn identify(path: &Path) -> Language {
         by_extension!(Language::Python, py);
         by_extension!(Language::Js, js);
         by_extension!(Language::Json, json);
+        by_extension!(Language::Toml, toml);
     }
 
     Language::Generic

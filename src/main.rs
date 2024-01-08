@@ -5,7 +5,7 @@ mod line_kind;
 mod table;
 mod walker;
 
-use std::{collections::HashMap, path::PathBuf, fmt::Display};
+use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use clap::Parser;
 use futures::StreamExt;
@@ -18,9 +18,30 @@ use crate::{
     walker::Walker,
 };
 
+#[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
+pub enum SortBy {
+    #[default]
+    Code,
+    Total,
+    Language,
+}
+impl Display for SortBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            SortBy::Code => "code",
+            SortBy::Language => "language",
+            SortBy::Total => "total",
+        };
+
+        write!(f, "{}", name)
+    }
+}
+
 #[derive(clap::Parser)]
 struct Args {
     path: PathBuf,
+    #[arg(short, long, default_value_t)]
+    sort_by: SortBy,
 }
 
 #[tokio::main]
@@ -50,10 +71,16 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
-    let rows: Vec<_> = loc_by_lang
+    let mut rows: Vec<_> = loc_by_lang
         .into_iter()
         .map(|(x, y)| (TableKey::Language(x), y))
         .collect();
+
+    match args.sort_by {
+        SortBy::Language => rows.sort_by_key(|(x, _)| x.to_string()),
+        SortBy::Code => rows.sort_by(|(_, y1), (_, y2)| y2.code.cmp(&y1.code)),
+        SortBy::Total => rows.sort_by(|(_, y1), (_, y2)| y2.total.cmp(&y1.total)),
+    };
 
     let rows_iter = rows
         .into_iter()
@@ -63,7 +90,7 @@ async fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TableKey {
     Language(Language),
     Total,
@@ -78,12 +105,11 @@ impl Display for TableKey {
     }
 }
 
-
 impl Table for FileInfo {
     type Key = TableKey;
     fn describe(x: Option<Self::Key>) -> TableDescriptor<Self> {
         TableDescriptorBuilder::new(x)
-            .column_key("Language", |x: &TableKey| format!("{x}"))
+            .column_key("Language", |x: &TableKey| *x)
             .column("Code", |x: &FileInfo| x.code)
             .column("Comments", |x: &FileInfo| x.comments)
             .column("Empty", |x: &FileInfo| x.comments)
