@@ -16,7 +16,7 @@ pub struct FileInfo {
     pub file_count: usize,
 }
 
-// WARNING: default and are not he same: default is the monoid identity, while new is now: it
+// WARNING: default and new are not he same: default is the monoid identity, while new is now: it
 // represents an empty file
 impl FileInfo {
     pub fn new() -> Self {
@@ -43,7 +43,7 @@ impl FileInfo {
 pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator + Send> {
     match language {
         Language::Rust => Box::new(GenericWithComment::new("//")),
-        Language::VueJs | Language::C | Language::Js | Language::Go => {
+        Language::VueJs | Language::C | Language::Js | Language::Go | Language::Shader => {
             Box::new(MultilineCommentAware::new("//", ["/*", "*/"]))
         }
         Language::Python => Box::new(GenericWithComment::new("#")),
@@ -54,6 +54,7 @@ pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator
         | Language::Csv
         | Language::Dockerfile
         | Language::Generic
+        | Language::CMake
         | Language::Json => Box::new(Generic),
     }
 }

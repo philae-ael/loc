@@ -14,6 +14,8 @@ pub enum Language {
     Scss,
     Csv,
     Dockerfile,
+    Shader,
+    CMake
 }
 
 impl std::fmt::Display for Language {
@@ -33,6 +35,8 @@ impl std::fmt::Display for Language {
             Language::Scss => "SCSS",
             Language::Csv => "CSV",
             Language::Dockerfile => "Dockerfile",
+            Language::Shader=> "Shader",
+            Language::CMake => "CMake",
         };
         write!(f, "{this}")
     }

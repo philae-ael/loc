@@ -17,6 +17,7 @@ pub fn identify(path: &Path) -> Language {
         }
 
         by_extension!(Language::C, c, h, cpp, hpp);
+        by_extension!(Language::Shader, vert, frag, glsl);
         by_extension!(Language::Rust, rs);
         by_extension!(Language::Python, py);
         by_extension!(Language::Js, js);
@@ -32,14 +33,15 @@ pub fn identify(path: &Path) -> Language {
 
     if let Some(filename) = path.file_name().and_then(|x| x.to_str()) {
         macro_rules! by_filename {
-            ($lang:expr, $($id:ident),+) => {
-                if [$(stringify!($id)),*].iter().any(|x| &filename == x) {
+            ($lang:expr, $($id:expr),+) => {
+                if [$($id),*].iter().any(|x| &filename == x) {
                     return $lang;
                 }
             };
         }
 
-        by_filename!(Language::Dockerfile, Dockerfile);
+        by_filename!(Language::Dockerfile, "Dockerfile");
+        by_filename!(Language::CMake, "CMakeLists.txt");
     }
 
     Language::Generic
