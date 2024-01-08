@@ -14,6 +14,9 @@ pub fn identify(path: &Path) -> Language {
 
         by_extension!(Language::C, c, h, cpp, hpp);
         by_extension!(Language::Rust, rs);
+        by_extension!(Language::Python, py);
+        by_extension!(Language::Js, js);
+        by_extension!(Language::Json, json);
     }
 
     Language::Generic

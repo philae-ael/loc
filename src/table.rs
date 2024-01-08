@@ -13,7 +13,10 @@ impl<T, It: Iterator<Item = T>> TableWrapper<T, It> {
     }
 }
 
-impl<T: Table + 'static, It: Iterator<Item = T>> Display for TableWrapper<T, It> {
+impl<U, V, It: Iterator<Item = (U, V)>> Display for TableWrapper<(U, V), It>
+where
+    V: Table<Key = U> + 'static,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let min_pad = 10;
         let out = std::cell::Cell::new(None);
@@ -21,9 +24,7 @@ impl<T: Table + 'static, It: Iterator<Item = T>> Display for TableWrapper<T, It>
         let Some(it) = out.into_inner() else {return Ok(())};
         let mut pads = vec![];
 
-        let descriptor = T::describe();
-
-        for entry in &descriptor.v {
+        for entry in &V::describe(None).v {
             write!(f, "| {: ^1$} ", entry.name, min_pad)?;
             pads.push(entry.name.len().max(min_pad));
         }
@@ -37,8 +38,8 @@ impl<T: Table + 'static, It: Iterator<Item = T>> Display for TableWrapper<T, It>
 
         for x in it {
             // print the fucking rest
-            for (entry, pad) in descriptor.v.iter().zip(&pads) {
-                let d = format!("{}", entry.disp.call(&x));
+            for (entry, pad) in V::describe(Some(x.0)).v.into_iter().zip(&pads) {
+                let d = format!("{}", entry.disp.call(&x.1));
                 write!(f, "| ")?;
                 match entry.format {
                     TableFormat::Center => write!(f, "{: ^1$}", d, pad)?,
@@ -63,70 +64,84 @@ pub enum TableFormat {
 pub struct TableEntry<T> {
     name: &'static str,
     format: TableFormat,
-    disp: Lens<T, dyn Display>,
+    disp: Lens<T, Box<dyn Display>>,
 }
 
-#[derive(Default)]
 pub struct TableDescriptor<T> {
     v: Vec<TableEntry<T>>,
 }
 
-struct Lens<T, S: ?Sized>(Box<dyn Fn(&T) -> &S>);
+pub struct TableDescriptorBuilder<T, Key> {
+    key: Option<Key>,
+    v: Vec<TableEntry<T>>,
+}
 
-impl<T: 'static, S: 'static + ?Sized> Lens<T, S> {
-    pub fn new(f: impl (Fn(&T) -> &S) + 'static) -> Self {
-        Self(Box::new(f))
-    }
+struct Lens<T, S: ?Sized>(Box<dyn FnOnce(&T) -> S>);
 
-    pub fn compose<A: 'static>(self, f: impl (for<'a> Fn(&'a A) -> &'a T) + 'static) -> Lens<A, S> {
-        Lens::new(move |x| self.call(f(x)))
-    }
-
-    pub fn call<'a>(&self, t: &'a T) -> &'a S {
+impl<T: 'static, S> Lens<T, S> {
+    pub fn call(self, t: &T) -> S {
         (self.0)(t)
     }
 }
 
-impl<T: 'static> TableDescriptor<T> {
-    pub fn new() -> Self {
-        Self { v: Vec::new() }
+impl<T: 'static, Key: 'static> TableDescriptorBuilder<T, Key> {
+    pub fn new(key: Option<Key>) -> Self {
+        Self { key, v: Vec::new() }
     }
 
-    pub fn column_with_format(
+    pub fn column_with_format<F: Display + 'static>(
         mut self,
         name: &'static str,
         format: TableFormat,
-        getter: impl (Fn(&T) -> &(dyn Display + 'static)) + 'static,
+        getter: impl (FnOnce(&T) -> F) + 'static,
     ) -> Self {
         self.v.push(TableEntry {
             name,
             format,
-            disp: Lens(Box::new(getter)),
+            disp: Lens(Box::new(|x| Box::new(getter(x)))),
         });
         self
     }
 
-    pub fn column(
+    pub fn column<F: Display + 'static>(
         self,
         name: &'static str,
-        getter: impl (Fn(&T) -> &(dyn Display + 'static)) + 'static,
+        getter: impl (FnOnce(&T) -> F) + 'static,
     ) -> Self {
         self.column_with_format(name, TableFormat::Left, getter)
     }
 
-    pub fn then<U: Table + 'static>(mut self, f: impl (Fn(&T) -> &U) + Copy + 'static) -> Self {
-        for entry in U::describe().v {
-            self.v.push(TableEntry {
-                name: entry.name,
-                format: entry.format,
-                disp: entry.disp.compose(f),
-            });
+    pub fn column_key<F: Display>(
+        self,
+        name: &'static str,
+        getter: impl (FnOnce(&Key) -> F) + 'static,
+    ) -> Self {
+        match &self.key {
+            Some(x) => {
+                let out = format!("{}", getter(x));
+                self.column(name, move |_| out)
+            }
+            None => self.column(name, move |_| name),
         }
+    }
 
-        self
+    // pub fn then<U: Table + 'static>(mut self, f: impl (Fn(&T) -> &U) + Copy + 'static) -> Self {
+    //     for entry in U::describe().v {
+    //         self.v.push(TableEntry {
+    //             name: entry.name,
+    //             format: entry.format,
+    //             disp: entry.disp.compose(f),
+    //         });
+    //     }
+    //
+    //     self
+    // }
+    pub fn build(self) -> TableDescriptor<T> {
+        TableDescriptor { v: self.v }
     }
 }
 
 pub trait Table: Sized {
-    fn describe() -> TableDescriptor<Self>;
+    type Key;
+    fn describe(x: Option<Self::Key>) -> TableDescriptor<Self>;
 }

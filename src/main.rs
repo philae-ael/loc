@@ -5,11 +5,11 @@ mod line_kind;
 mod table;
 mod walker;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, fmt::Display};
 
 use clap::Parser;
 use futures::StreamExt;
-use table::{Table, TableDescriptor, TableFormat};
+use table::{Table, TableDescriptor, TableDescriptorBuilder, TableFormat};
 
 use crate::{
     file_info::{file_info_from_path, FileInfo},
@@ -50,37 +50,47 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
-    let mut rows: Vec<_> = loc_by_lang
+    let rows: Vec<_> = loc_by_lang
         .into_iter()
-        .map(|(x, y)| (x.to_string(), y))
+        .map(|(x, y)| (TableKey::Language(x), y))
         .collect();
-    rows.sort_by(|x, y| x.0.cmp(&y.0));
 
     let rows_iter = rows
         .into_iter()
-        .chain(std::iter::once(("Total".into(), loc)));
+        .chain(std::iter::once((TableKey::Total, loc)));
 
     println!("{}", TableWrapper::new(rows_iter));
     Ok(())
 }
 
-impl Table for (String, FileInfo) {
-    fn describe() -> TableDescriptor<Self> {
-        TableDescriptor::new()
-            .column_with_format("String", TableFormat::Center, |x: &(String, FileInfo)| &x.0)
-            .then(|x: &(String, FileInfo)| &x.1)
+#[derive(Debug)]
+pub enum TableKey {
+    Language(Language),
+    Total,
+}
+
+impl Display for TableKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TableKey::Language(l) => l.fmt(f),
+            TableKey::Total => write!(f, "Total"),
+        }
     }
 }
 
+
 impl Table for FileInfo {
-    fn describe() -> TableDescriptor<Self> {
-        TableDescriptor::new()
-            .column("Code", |x: &FileInfo| &x.code)
-            .column("Comments", |x: &FileInfo| &x.comments)
-            .column("Empty", |x: &FileInfo| &x.comments)
-            .column("Total", |x: &FileInfo| &x.code)
+    type Key = TableKey;
+    fn describe(x: Option<Self::Key>) -> TableDescriptor<Self> {
+        TableDescriptorBuilder::new(x)
+            .column_key("Language", |x: &TableKey| format!("{x}"))
+            .column("Code", |x: &FileInfo| x.code)
+            .column("Comments", |x: &FileInfo| x.comments)
+            .column("Empty", |x: &FileInfo| x.comments)
+            .column("Total", |x: &FileInfo| x.code)
             .column_with_format("File count", TableFormat::Right, |x: &FileInfo| {
-                &x.file_count
+                x.file_count
             })
+            .build()
     }
 }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     identify::identify,
     language::Language,
-    line_kind::{generic_line_kind, generic_line_kind_with_comment, LineKind},
+    line_kind::{Generic, GenericWithComment, LineKind, LineKindEstimator, MultilineCommentAware},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -40,21 +40,23 @@ impl FileInfo {
     }
 }
 
+pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator + Send> {
+    match language {
+        Language::Rust => Box::new(GenericWithComment::new("//")),
+        Language::C | Language::Js => Box::new(MultilineCommentAware::new("//", ["/*", "*/"])),
+        Language::Generic | Language::Json => Box::new(Generic),
+        Language::Python => Box::new(GenericWithComment::new("#")),
+    }
+}
+
 pub async fn file_info_from_path(file: PathBuf) -> std::io::Result<(FileInfo, Language)> {
     let language = identify(&file);
-    macro_rules! with_line_kind {
-        ($line_kind:expr) => {
-            gen_file_info(file, $line_kind).await
-        };
+
+    let file_info = async {
+        let mut line_kind_estimator = make_line_kind_estimator(language);
+        gen_file_info(file, &mut *line_kind_estimator).await
     }
-
-    #[rustfmt::skip]
-    let file_info = match language {
-        Language::Rust    => with_line_kind!(generic_line_kind_with_comment("//")),
-        Language::C       => with_line_kind!(generic_line_kind_with_comment("//")),
-        Language::Generic => with_line_kind!(generic_line_kind()),
-    }?;
-
+    .await?;
     Ok((file_info, language))
 }
 
@@ -74,9 +76,9 @@ async fn read_line<'a, T: tokio::io::AsyncRead + std::marker::Unpin>(
     }
 }
 
-pub async fn gen_file_info<F: Fn(&str) -> LineKind>(
+pub async fn gen_file_info(
     file: PathBuf,
-    line_kind: F,
+    line_kind_estimator: &mut (dyn LineKindEstimator + Send),
 ) -> std::io::Result<FileInfo> {
     let mut file_info = FileInfo::new();
     let f = tokio::fs::OpenOptions::new()
@@ -89,7 +91,7 @@ pub async fn gen_file_info<F: Fn(&str) -> LineKind>(
     let mut line_buf = String::new();
     while let Some(li) = read_line(&mut buffered, &mut line_buf).await {
         file_info.total += 1;
-        match line_kind(li) {
+        match line_kind_estimator.estimate(li) {
             LineKind::Comment => file_info.comments += 1,
             LineKind::Code => file_info.code += 1,
             LineKind::Empty => file_info.empty += 1,
