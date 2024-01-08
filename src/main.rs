@@ -112,8 +112,8 @@ impl Table for FileInfo {
             .column_key("Language", |x: &TableKey| *x)
             .column("Code", |x: &FileInfo| x.code)
             .column("Comments", |x: &FileInfo| x.comments)
-            .column("Empty", |x: &FileInfo| x.comments)
-            .column("Total", |x: &FileInfo| x.code)
+            .column("Empty", |x: &FileInfo| x.empty)
+            .column("Total", |x: &FileInfo| x.total)
             .column_with_format("File count", TableFormat::Right, |x: &FileInfo| {
                 x.file_count
             })
