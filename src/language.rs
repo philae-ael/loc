@@ -20,7 +20,7 @@ impl std::fmt::Display for Language {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let this = match self {
             Language::Rust => "Rust",
-            Language::C => "C",
+            Language::C => "C/C++",
             Language::Generic => "Other",
             Language::Js => "Javascript",
             Language::Json => "JSON",
