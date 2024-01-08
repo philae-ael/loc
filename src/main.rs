@@ -107,15 +107,14 @@ impl Display for TableKey {
 
 impl Table for FileInfo {
     type Key = TableKey;
-    fn describe(x: Option<Self::Key>) -> TableDescriptor<Self> {
-        TableDescriptorBuilder::new(x)
-            .column_key("Language", |x: &TableKey| *x)
-            .column("Code", |x: &FileInfo| x.code)
-            .column("Comments", |x: &FileInfo| x.comments)
-            .column("Empty", |x: &FileInfo| x.empty)
-            .column("Total", |x: &FileInfo| x.total)
+    fn describe() -> TableDescriptor<Self, Self::Key> {
+        TableDescriptorBuilder::column_key("Language", |x: &TableKey| x)
+            .column("Code", |x: &FileInfo| &x.code)
+            .column("Comments", |x: &FileInfo| &x.comments)
+            .column("Empty", |x: &FileInfo| &x.empty)
+            .column("Total", |x: &FileInfo| &x.total)
             .column_with_format("File count", TableFormat::Right, |x: &FileInfo| {
-                x.file_count
+                &x.file_count
             })
             .build()
     }

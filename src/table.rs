@@ -29,70 +29,105 @@ impl<T, It: Iterator<Item = T>> TableWrapper<T, It> {
 
 impl<U, V, It: Iterator<Item = (U, V)>> Display for TableWrapper<(U, V), It>
 where
-    V: Table<Key = U> + 'static,
+    V: Table<Key = U>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn draw_line_sep(
             f: &mut std::fmt::Formatter<'_>,
             pads: &[usize],
+            box_horizontal: &str,
             box_left: &str,
             box_mid: &str,
             box_right: &str,
         ) -> std::fmt::Result {
-            let mut it = pads.iter().copied().peekable();
+            let total: usize = pads.iter().sum::<usize>() + pads.len() + 2;
+            let mut buf: Vec<&str> = vec![box_horizontal; total];
 
-            write!(
-                f,
-                "{}{}",
-                box_left,
-                str::repeat(BOX_HORIZONTAL, it.next().unwrap_or(0) + 2)
-            )?;
-            for entry in it {
-                write!(f, "{}{}", box_mid, str::repeat(BOX_HORIZONTAL, entry + 2))?;
+            let mut sum = 0;
+            buf[0] = box_left;
+            for s in pads {
+                sum += s + 1;
+                buf[sum] = box_mid;
             }
-            writeln!(f, "{}", box_right)
+            buf[sum] = box_right;
+            buf[sum + 1] = "\n";
+
+            f.write_str(&buf.into_iter().collect::<String>())
         }
 
-        let max_pad = 10;
-        let min_pad = 5;
+        fn write_col<T>(
+            f: &mut std::fmt::Formatter<'_>,
+            entry: &TableEntry<T>,
+            t: &T,
+            pad: usize,
+        ) -> std::fmt::Result {
+            let d = format!("{}", entry.disp.call(t));
+            write!(f, "{BOX_VERT}")?;
+            match entry.format {
+                TableFormat::Center => write!(f, "{: ^1$}", d, pad),
+                TableFormat::Left => write!(f, "{: <1$}", d, pad),
+                TableFormat::Right => write!(f, "{: >1$}", d, pad),
+            }
+        }
+        let table_descriptor = V::describe();
+
+        let min_pad = 8;
         let out = std::cell::Cell::new(None);
         self.data.swap(&out);
-        let Some(it) = out.into_inner() else {return Ok(())};
+        let Some(it) = out.into_inner() else {
+            return Ok(());
+        };
         let mut pads = vec![];
 
-        for entry in &V::describe(None).v {
-            pads.push(entry.name.len().min(max_pad).max(min_pad));
+        pads.push(2 + table_descriptor.key.name.len().max(min_pad));
+        for entry in &table_descriptor.v {
+            pads.push(2 + entry.name.len().max(min_pad));
         }
 
-        draw_line_sep(f, &pads, BOX_CROSS_LEFT_DOWN, BOX_CROSS_DOWN, BOX_CROSS_RIGHT_DOWN)?;
-        for (entry, pad) in V::describe(None).v.into_iter().zip(pads.iter().copied()) {
-            write!(f, "{BOX_VERT} {: ^1$} ", entry.name, pad)?;
+        draw_line_sep(
+            f,
+            &pads,
+            BOX_HORIZONTAL,
+            BOX_CROSS_LEFT_DOWN,
+            BOX_CROSS_DOWN,
+            BOX_CROSS_RIGHT_DOWN,
+        )?;
+        
+        write!(f, "{BOX_VERT}{: ^1$}", table_descriptor.key.name, pads[0])?;
+        for (entry, pad) in table_descriptor.v.iter().zip(pads[1..].iter().copied()) {
+            write!(f, "{BOX_VERT}{: ^1$}", entry.name, pad)?;
         }
         writeln!(f, "{BOX_VERT}")?;
 
-        draw_line_sep(f, &pads, BOX_CROSS_LEFT, BOX_CROSS, BOX_CROSS_RIGHT)?;
+        draw_line_sep(
+            f,
+            &pads,
+            BOX_HORIZONTAL,
+            BOX_CROSS_LEFT,
+            BOX_CROSS,
+            BOX_CROSS_RIGHT,
+        )?;
 
         for x in it {
-            // print the fucking rest
-            for (entry, pad) in V::describe(Some(x.0)).v.into_iter().zip(&pads) {
-                let d = format!("{}", entry.disp.call(&x.1));
-                write!(f, "{BOX_VERT} ")?;
-                match entry.format {
-                    TableFormat::Center => write!(f, "{: ^1$}", d, pad)?,
-                    TableFormat::Left => write!(f, "{: <1$}", d, pad)?,
-                    TableFormat::Right => write!(f, "{: >1$}", d, pad)?,
-                }
-                write!(f, " ")?;
+            write_col(f, &table_descriptor.key, &x.0, pads[0])?;
+            for (entry, pad) in table_descriptor.v.iter().zip(&pads[1..]) {
+                write_col(f, entry, &x.1, *pad)?;
             }
             writeln!(f, "{BOX_VERT}")?;
         }
 
-        draw_line_sep(f, &pads, BOX_CROSS_LEFT_UP, BOX_CROSS_UP, BOX_CROSS_RIGHT_UP)?;
+        draw_line_sep(
+            f,
+            &pads,
+            BOX_HORIZONTAL,
+            BOX_CROSS_LEFT_UP,
+            BOX_CROSS_UP,
+            BOX_CROSS_RIGHT_UP,
+        )?;
         Ok(())
     }
 }
 
-#[allow(dead_code)]
 pub enum TableFormat {
     Center,
     Left,
@@ -102,84 +137,73 @@ pub enum TableFormat {
 pub struct TableEntry<T> {
     name: &'static str,
     format: TableFormat,
-    disp: Lens<T, Box<dyn Display>>,
+    disp: Lens<T>,
 }
 
-pub struct TableDescriptor<T> {
+pub struct TableDescriptor<T, Key> {
     v: Vec<TableEntry<T>>,
+    key: TableEntry<Key>,
 }
 
 pub struct TableDescriptorBuilder<T, Key> {
-    key: Option<Key>,
     v: Vec<TableEntry<T>>,
+    key: TableEntry<Key>,
 }
 
-struct Lens<T, S: ?Sized>(Box<dyn FnOnce(&T) -> S>);
+struct Lens<T>(Box<dyn (for<'a> Fn(&'a T) -> &'a dyn Display)>);
 
-impl<T: 'static, S> Lens<T, S> {
-    pub fn call(self, t: &T) -> S {
+impl<T> Lens<T> {
+    pub fn call<'s>(&self, t: &'s T) -> &'s dyn Display {
         (self.0)(t)
     }
 }
 
-impl<T: 'static, Key: 'static> TableDescriptorBuilder<T, Key> {
-    pub fn new(key: Option<Key>) -> Self {
-        Self { key, v: Vec::new() }
-    }
-
-    pub fn column_with_format<F: Display + 'static>(
+impl<T, Key> TableDescriptorBuilder<T, Key> {
+    pub fn column_with_format(
         mut self,
         name: &'static str,
         format: TableFormat,
-        getter: impl (FnOnce(&T) -> F) + 'static,
+        getter: impl (Fn(&T) -> &dyn Display) + 'static,
     ) -> Self {
         self.v.push(TableEntry {
             name,
             format,
-            disp: Lens(Box::new(|x| Box::new(getter(x)))),
+            disp: Lens(Box::new(getter)),
         });
         self
     }
 
-    pub fn column<F: Display + 'static>(
+    pub fn column(
         self,
         name: &'static str,
-        getter: impl (FnOnce(&T) -> F) + 'static,
+        getter: impl (Fn(&T) -> &dyn Display) + 'static,
     ) -> Self {
         self.column_with_format(name, TableFormat::Left, getter)
     }
 
-    pub fn column_key<F: Display>(
-        self,
+    pub fn column_key(
         name: &'static str,
-        getter: impl (FnOnce(&Key) -> F) + 'static,
+        getter: impl (Fn(&Key) -> &dyn Display) + 'static,
     ) -> Self {
-        match &self.key {
-            Some(x) => {
-                let out = format!("{}", getter(x));
-                self.column_with_format(name, TableFormat::Center, move |_| out)
-            }
-            None => self.column_with_format(name, TableFormat::Center, move |_| name),
+        Self {
+            v: Vec::new(),
+            key: TableEntry {
+                name,
+                format: TableFormat::Center,
+                disp: Lens(Box::new(getter)),
+            },
         }
     }
 
-    // pub fn then<U: Table + 'static>(mut self, f: impl (Fn(&T) -> &U) + Copy + 'static) -> Self {
-    //     for entry in U::describe().v {
-    //         self.v.push(TableEntry {
-    //             name: entry.name,
-    //             format: entry.format,
-    //             disp: entry.disp.compose(f),
-    //         });
-    //     }
-    //
-    //     self
-    // }
-    pub fn build(self) -> TableDescriptor<T> {
-        TableDescriptor { v: self.v }
+    pub fn build(self) -> TableDescriptor<T, Key> {
+        TableDescriptor {
+            v: self.v,
+            key: self.key,
+        }
     }
 }
 
 pub trait Table: Sized {
     type Key;
-    fn describe(x: Option<Self::Key>) -> TableDescriptor<Self>;
+    fn describe() -> TableDescriptor<Self, Self::Key>;
 }
