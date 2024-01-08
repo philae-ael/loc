@@ -1,5 +1,19 @@
 use std::fmt::Display;
 
+const BOX_VERT: &str = "│";
+const BOX_HORIZONTAL: &str = "─";
+const BOX_CROSS_LEFT: &str = "├";
+const BOX_CROSS: &str = "┼";
+const BOX_CROSS_RIGHT: &str = "┤";
+
+const BOX_CROSS_LEFT_DOWN: &str = "┌";
+const BOX_CROSS_DOWN: &str = "┬";
+const BOX_CROSS_RIGHT_DOWN: &str = "┐";
+
+const BOX_CROSS_LEFT_UP: &str = "└";
+const BOX_CROSS_UP: &str = "┴";
+const BOX_CROSS_RIGHT_UP: &str = "┘";
+
 // Display tables, the wanky way
 pub struct TableWrapper<T, It: Iterator<Item = T>> {
     data: std::cell::Cell<Option<It>>,
@@ -18,29 +32,51 @@ where
     V: Table<Key = U> + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let min_pad = 10;
+        fn draw_line_sep(
+            f: &mut std::fmt::Formatter<'_>,
+            pads: &[usize],
+            box_left: &str,
+            box_mid: &str,
+            box_right: &str,
+        ) -> std::fmt::Result {
+            let mut it = pads.iter().copied().peekable();
+
+            write!(
+                f,
+                "{}{}",
+                box_left,
+                str::repeat(BOX_HORIZONTAL, it.next().unwrap_or(0) + 2)
+            )?;
+            for entry in it {
+                write!(f, "{}{}", box_mid, str::repeat(BOX_HORIZONTAL, entry + 2))?;
+            }
+            writeln!(f, "{}", box_right)
+        }
+
+        let max_pad = 10;
+        let min_pad = 5;
         let out = std::cell::Cell::new(None);
         self.data.swap(&out);
         let Some(it) = out.into_inner() else {return Ok(())};
         let mut pads = vec![];
 
         for entry in &V::describe(None).v {
-            write!(f, "| {: ^1$} ", entry.name, min_pad)?;
-            pads.push(entry.name.len().max(min_pad));
+            pads.push(entry.name.len().min(max_pad).max(min_pad));
         }
-        writeln!(f, "|")?;
 
-        // print seperator
-        for entry in &pads {
-            write!(f, "| {:-^1$} ", "", entry)?;
+        draw_line_sep(f, &pads, BOX_CROSS_LEFT_DOWN, BOX_CROSS_DOWN, BOX_CROSS_RIGHT_DOWN)?;
+        for (entry, pad) in V::describe(None).v.into_iter().zip(pads.iter().copied()) {
+            write!(f, "{BOX_VERT} {: ^1$} ", entry.name, pad)?;
         }
-        writeln!(f, "|")?;
+        writeln!(f, "{BOX_VERT}")?;
+
+        draw_line_sep(f, &pads, BOX_CROSS_LEFT, BOX_CROSS, BOX_CROSS_RIGHT)?;
 
         for x in it {
             // print the fucking rest
             for (entry, pad) in V::describe(Some(x.0)).v.into_iter().zip(&pads) {
                 let d = format!("{}", entry.disp.call(&x.1));
-                write!(f, "| ")?;
+                write!(f, "{BOX_VERT} ")?;
                 match entry.format {
                     TableFormat::Center => write!(f, "{: ^1$}", d, pad)?,
                     TableFormat::Left => write!(f, "{: <1$}", d, pad)?,
@@ -48,8 +84,10 @@ where
                 }
                 write!(f, " ")?;
             }
-            writeln!(f, "|")?;
+            writeln!(f, "{BOX_VERT}")?;
         }
+
+        draw_line_sep(f, &pads, BOX_CROSS_LEFT_UP, BOX_CROSS_UP, BOX_CROSS_RIGHT_UP)?;
         Ok(())
     }
 }
