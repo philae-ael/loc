@@ -4,15 +4,8 @@ pub enum LineKind {
     Empty,
 }
 
-pub struct AvailableLineKinds {
-    pub code: bool,
-    pub comment: bool,
-    pub empty: bool,
-}
-
 pub trait LineKindEstimator {
     fn estimate(&mut self, line: &str) -> LineKind;
-    fn available_line_kinds(&self) -> AvailableLineKinds;
 }
 
 pub struct MultilineCommentAware {
@@ -56,14 +49,6 @@ impl LineKindEstimator for MultilineCommentAware {
             }
         }
     }
-
-    fn available_line_kinds(&self) -> AvailableLineKinds {
-        AvailableLineKinds {
-            code: true,
-            comment: true,
-            empty: true,
-        }
-    }
 }
 
 pub struct GenericWithComment {
@@ -87,14 +72,6 @@ impl LineKindEstimator for GenericWithComment {
             LineKind::Code
         }
     }
-
-    fn available_line_kinds(&self) -> AvailableLineKinds {
-        AvailableLineKinds {
-            code: true,
-            comment: true,
-            empty: true,
-        }
-    }
 }
 
 pub struct Generic;
@@ -105,14 +82,6 @@ impl LineKindEstimator for Generic {
             LineKind::Empty
         } else {
             LineKind::Code
-        }
-    }
-
-    fn available_line_kinds(&self) -> AvailableLineKinds {
-        AvailableLineKinds {
-            code: true,
-            comment: false,
-            empty: true,
         }
     }
 }
