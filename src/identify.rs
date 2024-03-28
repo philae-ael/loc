@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::language::Language;
 
-pub fn identify(path: &Path) -> Language {
+pub fn identify(path: &Path, debug: bool) -> Language {
     if let Some(extension) = path
         .extension()
         .and_then(|x| x.to_str())
@@ -44,5 +44,8 @@ pub fn identify(path: &Path) -> Language {
         by_filename!(Language::CMake, "CMakeLists.txt");
     }
 
+    if debug {
+        println!("unidentified file type with name {}", path.display())
+    }
     Language::Generic
 }

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::{
     identify::identify,
     language::Language,
@@ -59,8 +57,11 @@ pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator
     }
 }
 
-pub async fn file_info_from_path(file: PathBuf) -> std::io::Result<(FileInfo, Language)> {
-    let language = identify(&file);
+pub async fn file_info_from_path(
+    file: &std::path::Path,
+    debug: bool,
+) -> std::io::Result<(FileInfo, Language)> {
+    let language = identify(file, debug);
 
     let file_info = async {
         let mut line_kind_estimator = make_line_kind_estimator(language);
@@ -87,7 +88,7 @@ async fn read_line<'a, T: tokio::io::AsyncRead + std::marker::Unpin>(
 }
 
 pub async fn gen_file_info(
-    file: PathBuf,
+    file: &std::path::Path,
     line_kind_estimator: &mut (dyn LineKindEstimator + Send),
 ) -> std::io::Result<FileInfo> {
     let mut file_info = FileInfo::new();
