@@ -1,18 +1,18 @@
 use std::fmt::Display;
 
-const BOX_VERT: &str = "│";
+const BOX_VERT: &str = " │ ";
 const BOX_HORIZONTAL: &str = "─";
-const BOX_CROSS_LEFT: &str = "├";
-const BOX_CROSS: &str = "┼";
-const BOX_CROSS_RIGHT: &str = "┤";
+const BOX_CROSS_LEFT: &str = " ├─";
+const BOX_CROSS: &str = "─┼─";
+const BOX_CROSS_RIGHT: &str = "─┤";
 
-const BOX_CROSS_LEFT_DOWN: &str = "┌";
-const BOX_CROSS_DOWN: &str = "┬";
-const BOX_CROSS_RIGHT_DOWN: &str = "┐";
+const BOX_CROSS_LEFT_DOWN: &str = " ┌─";
+const BOX_CROSS_DOWN: &str = "─┬─";
+const BOX_CROSS_RIGHT_DOWN: &str = "─┐";
 
-const BOX_CROSS_LEFT_UP: &str = "└";
-const BOX_CROSS_UP: &str = "┴";
-const BOX_CROSS_RIGHT_UP: &str = "┘";
+const BOX_CROSS_LEFT_UP: &str = " └─";
+const BOX_CROSS_UP: &str = "─┴─";
+const BOX_CROSS_RIGHT_UP: &str = "─┘";
 
 // Display tables, the wanky way
 pub struct TableWrapper<T, It: Iterator<Item = T>> {
@@ -71,7 +71,7 @@ where
         }
         let table_descriptor = V::describe();
 
-        let min_pad = 8;
+        let min_pad = 10;
         let out = std::cell::Cell::new(None);
         self.data.swap(&out);
         let Some(it) = out.into_inner() else {
