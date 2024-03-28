@@ -3,6 +3,21 @@ use std::path::Path;
 use crate::language::Language;
 
 pub fn identify(path: &Path, debug: bool) -> Language {
+    if let Some(filename) = path.file_name().and_then(|x| x.to_str()) {
+        macro_rules! by_filename {
+            ($lang:expr, $($id:expr),+) => {
+                if [$($id),*].iter().any(|x| &filename == x) {
+                    return $lang;
+                }
+            };
+        }
+
+        by_filename!(Language::Dockerfile, "Dockerfile");
+        by_filename!(Language::CMake, "CMakeLists.txt");
+        by_filename!(Language::Makefile, "Makefile");
+        by_filename!(Language::Txt, "LICENSE");
+    }
+
     if let Some(extension) = path
         .extension()
         .and_then(|x| x.to_str())
@@ -25,10 +40,16 @@ pub fn identify(path: &Path, debug: bool) -> Language {
         by_extension!(Language::Toml, toml);
         by_extension!(Language::Go, go);
         by_extension!(Language::Csv, csv);
-        by_extension!(Language::Yaml, yaml);
-        by_extension!(Language::Scss, scss);
+        by_extension!(Language::Yaml, yaml, yml);
+        by_extension!(Language::Css, scss, css);
+        by_extension!(Language::Html, html);
         by_extension!(Language::VueJs, vue);
         by_extension!(Language::Markdown, md);
+        by_extension!(Language::Tex, tex, bib);
+        by_extension!(Language::Shell, sh, bash, zsh, fish);
+        by_extension!(Language::Txt, txt);
+        by_extension!(Language::Ruby, rb);
+        by_extension!(Language::Liquid, liquid);
         by_extension!(
             Language::Asset,
             jpg,
@@ -39,21 +60,17 @@ pub fn identify(path: &Path, debug: bool) -> Language {
             ttf,
             pdf,
             obj,
-            mtl
+            mtl,
+            woff,
+            woff2,
+            o,
+            bin,
+            gltf,
+            out,
+            map,
+            mp3
         );
-    }
-
-    if let Some(filename) = path.file_name().and_then(|x| x.to_str()) {
-        macro_rules! by_filename {
-            ($lang:expr, $($id:expr),+) => {
-                if [$($id),*].iter().any(|x| &filename == x) {
-                    return $lang;
-                }
-            };
-        }
-
-        by_filename!(Language::Dockerfile, "Dockerfile");
-        by_filename!(Language::CMake, "CMakeLists.txt");
+        by_extension!(Language::CMake, cmake);
     }
 
     if debug {

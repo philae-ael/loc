@@ -1,7 +1,7 @@
 use crate::{
     identify::identify,
-    language::Language,
-    line_kind::{Generic, GenericWithComment, LineKind, LineKindEstimator, MultilineCommentAware},
+    language::{make_line_kind_estimator, Language},
+    line_kind::{LineKind, LineKindEstimator},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -48,26 +48,6 @@ impl FileInfo {
             comments: self.comments + other.comments,
             file_count: self.file_count + other.file_count,
         }
-    }
-}
-
-pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEstimator + Send>> {
-    match language {
-        Language::Rust => Some(Box::new(GenericWithComment::new("//"))),
-        Language::VueJs | Language::C | Language::Js | Language::Go | Language::Shader => {
-            Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"])))
-        }
-        Language::Python => Some(Box::new(GenericWithComment::new("#"))),
-        Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
-        Language::Markdown
-        | Language::Scss
-        | Language::Yaml
-        | Language::Csv
-        | Language::Dockerfile
-        | Language::Generic
-        | Language::CMake
-        | Language::Json => Some(Box::new(Generic)),
-        Language::Asset => None,
     }
 }
 

@@ -1,3 +1,5 @@
+use crate::line_kind::{Generic, GenericWithComment, LineKindEstimator, MultilineCommentAware};
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Language {
     Rust,
@@ -11,12 +13,19 @@ pub enum Language {
     Yaml,
     Markdown,
     VueJs,
-    Scss,
+    Css,
     Csv,
     Dockerfile,
     Shader,
     CMake,
+    Makefile,
     Asset,
+    Tex,
+    Liquid,
+    Ruby,
+    Html,
+    Shell,
+    Txt,
 }
 
 impl std::fmt::Display for Language {
@@ -33,13 +42,47 @@ impl std::fmt::Display for Language {
             Language::Yaml => "YAML",
             Language::Markdown => "Markdown",
             Language::VueJs => "VueJs",
-            Language::Scss => "SCSS",
+            Language::Css => "CSS",
+            Language::Html => "HTML",
             Language::Csv => "CSV",
             Language::Dockerfile => "Dockerfile",
             Language::Shader => "Shader",
             Language::CMake => "CMake",
             Language::Asset => "Asset",
+            Language::Makefile => "Makefile",
+            Language::Tex => "Tex/Latex",
+            Language::Txt => "Text",
+            Language::Shell => "Shell",
+            Language::Ruby => "Ruby",
+            Language::Liquid => "Liquid",
         };
         write!(f, "{this}")
+    }
+}
+
+pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEstimator + Send>> {
+    match language {
+        Language::Rust => Some(Box::new(GenericWithComment::new("//"))),
+        Language::VueJs | Language::C | Language::Js | Language::Go | Language::Shader => {
+            Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"])))
+        }
+        Language::Python => Some(Box::new(GenericWithComment::new("#"))),
+        Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
+        Language::Tex => Some(Box::new(GenericWithComment::new("%"))),
+        Language::Markdown
+        | Language::Makefile
+        | Language::Css
+        | Language::Yaml
+        | Language::Html
+        | Language::Csv
+        | Language::Liquid
+        | Language::Dockerfile
+        | Language::Generic
+        | Language::CMake
+        | Language::Ruby
+        | Language::Txt
+        | Language::Shell
+        | Language::Json => Some(Box::new(Generic)),
+        Language::Asset => None,
     }
 }
