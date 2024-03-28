@@ -6,6 +6,7 @@ use crate::{
 
 #[derive(Debug, Default, Clone)]
 pub struct FileInfo {
+    pub textual: bool,
     pub total: usize,
     pub code: usize,
     pub comments: usize,
@@ -19,6 +20,17 @@ pub struct FileInfo {
 impl FileInfo {
     pub fn new() -> Self {
         Self {
+            textual: true,
+            total: 0,
+            code: 0,
+            comments: 0,
+            file_count: 1,
+            empty: 0,
+        }
+    }
+    pub fn new_non_text() -> Self {
+        Self {
+            textual: false,
             total: 0,
             code: 0,
             comments: 0,
@@ -29,6 +41,7 @@ impl FileInfo {
 
     pub fn merge_with(&mut self, other: &Self) {
         *self = Self {
+            textual: self.textual || other.textual,
             total: self.total + other.total,
             code: self.code + other.code,
             empty: self.empty + other.empty,
@@ -38,14 +51,14 @@ impl FileInfo {
     }
 }
 
-pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator + Send> {
+pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEstimator + Send>> {
     match language {
-        Language::Rust => Box::new(GenericWithComment::new("//")),
+        Language::Rust => Some(Box::new(GenericWithComment::new("//"))),
         Language::VueJs | Language::C | Language::Js | Language::Go | Language::Shader => {
-            Box::new(MultilineCommentAware::new("//", ["/*", "*/"]))
+            Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"])))
         }
-        Language::Python => Box::new(GenericWithComment::new("#")),
-        Language::Toml => Box::new(GenericWithComment::new("#")),
+        Language::Python => Some(Box::new(GenericWithComment::new("#"))),
+        Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
         Language::Markdown
         | Language::Scss
         | Language::Yaml
@@ -53,7 +66,8 @@ pub fn make_line_kind_estimator(language: Language) -> Box<dyn LineKindEstimator
         | Language::Dockerfile
         | Language::Generic
         | Language::CMake
-        | Language::Json => Box::new(Generic),
+        | Language::Json => Some(Box::new(Generic)),
+        Language::Asset => None,
     }
 }
 
@@ -63,12 +77,10 @@ pub async fn file_info_from_path(
 ) -> std::io::Result<(FileInfo, Language)> {
     let language = identify(file, debug);
 
-    let file_info = async {
-        let mut line_kind_estimator = make_line_kind_estimator(language);
-        gen_file_info(file, &mut *line_kind_estimator).await
-    }
-    .await?;
-    Ok((file_info, language))
+    Ok((
+        gen_file_info(file, make_line_kind_estimator(language)).await?,
+        language,
+    ))
 }
 
 ///  ---
@@ -89,25 +101,30 @@ async fn read_line<'a, T: tokio::io::AsyncRead + std::marker::Unpin>(
 
 pub async fn gen_file_info(
     file: &std::path::Path,
-    line_kind_estimator: &mut (dyn LineKindEstimator + Send),
+    line_kind_estimator: Option<Box<dyn LineKindEstimator + Send>>,
 ) -> std::io::Result<FileInfo> {
     let mut file_info = FileInfo::new();
-    let f = tokio::fs::OpenOptions::new()
-        .read(true)
-        .write(false)
-        .open(file)
-        .await?;
+    match line_kind_estimator {
+        Some(mut line_kind_estimator) => {
+            let f = tokio::fs::OpenOptions::new()
+                .read(true)
+                .write(false)
+                .open(file)
+                .await?;
 
-    let mut buffered = tokio::io::BufReader::new(f);
-    let mut line_buf = String::new();
-    while let Some(li) = read_line(&mut buffered, &mut line_buf).await {
-        file_info.total += 1;
-        match line_kind_estimator.estimate(li) {
-            LineKind::Comment => file_info.comments += 1,
-            LineKind::Code => file_info.code += 1,
-            LineKind::Empty => file_info.empty += 1,
+            let mut buffered = tokio::io::BufReader::new(f);
+            let mut line_buf = String::new();
+            while let Some(li) = read_line(&mut buffered, &mut line_buf).await {
+                file_info.total += 1;
+                match line_kind_estimator.estimate(li) {
+                    LineKind::Comment => file_info.comments += 1,
+                    LineKind::Code => file_info.code += 1,
+                    LineKind::Empty => file_info.empty += 1,
+                }
+            }
+
+            Ok(file_info)
         }
+        None => Ok(FileInfo::new_non_text()),
     }
-
-    Ok(file_info)
 }

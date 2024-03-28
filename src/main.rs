@@ -49,15 +49,21 @@ struct Args {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    let walker = ignore::WalkBuilder::new(args.path).hidden(true).build();
+    let walker = ignore::WalkBuilder::new(args.path)
+        .hidden(true)
+        // .filter_entry(|x| !x.path().is_dir())
+        .build();
 
     let mut file_infos = futures::stream::iter(walker)
         .then(|file| async {
             let f = file?;
+            if f.path().is_dir() {
+                return Ok(None);
+            }
             let info = file_info_from_path(f.path(), args.debug)
                 .await
                 .with_context(|| format!("while getting file infos from {}", f.path().display()))?;
-            anyhow::Ok(info)
+            anyhow::Ok(Some(info))
         })
         .boxed();
 
@@ -65,13 +71,14 @@ async fn main() -> std::io::Result<()> {
     let mut loc_by_lang = HashMap::<Language, FileInfo>::new();
     while let Some(next_file_info) = file_infos.next().await {
         match next_file_info {
-            Ok((file_info, language)) => {
+            Ok(Some((file_info, language))) => {
                 loc_by_lang
                     .entry(language)
                     .or_default()
                     .merge_with(&file_info);
                 loc.merge_with(&file_info);
             }
+            Ok(None) => (),
             Err(err) => {
                 println!("ERROR! {err:#}");
             }
@@ -120,10 +127,46 @@ impl Table for FileInfo {
     type Key = TableKey;
     fn describe() -> TableDescriptor<Self, Self::Key> {
         TableDescriptorBuilder::column_key("Language", |x: &TableKey| x)
-            .column("Code", |x: &FileInfo| &x.code)
-            .column("Comments", |x: &FileInfo| &x.comments)
-            .column("Empty", |x: &FileInfo| &x.empty)
-            .column("Total", |x: &FileInfo| &x.total)
+            .column(
+                "Code",
+                |x: &FileInfo| {
+                    if x.textual {
+                        &x.code
+                    } else {
+                        &"-"
+                    }
+                },
+            )
+            .column(
+                "Comments",
+                |x: &FileInfo| {
+                    if x.textual {
+                        &x.code
+                    } else {
+                        &"-"
+                    }
+                },
+            )
+            .column(
+                "Empty",
+                |x: &FileInfo| {
+                    if x.textual {
+                        &x.code
+                    } else {
+                        &"-"
+                    }
+                },
+            )
+            .column(
+                "Total",
+                |x: &FileInfo| {
+                    if x.textual {
+                        &x.code
+                    } else {
+                        &"-"
+                    }
+                },
+            )
             .column_with_format("File count", TableFormat::Right, |x: &FileInfo| {
                 &x.file_count
             })

@@ -29,6 +29,18 @@ pub fn identify(path: &Path, debug: bool) -> Language {
         by_extension!(Language::Scss, scss);
         by_extension!(Language::VueJs, vue);
         by_extension!(Language::Markdown, md);
+        by_extension!(
+            Language::Asset,
+            jpg,
+            png,
+            jpeg,
+            gif,
+            bmp,
+            ttf,
+            pdf,
+            obj,
+            mtl
+        );
     }
 
     if let Some(filename) = path.file_name().and_then(|x| x.to_str()) {
