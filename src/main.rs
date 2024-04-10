@@ -141,7 +141,7 @@ impl Table for FileInfo {
                 "Comments",
                 |x: &FileInfo| {
                     if x.textual {
-                        &x.code
+                        &x.comments
                     } else {
                         &"-"
                     }
@@ -151,7 +151,7 @@ impl Table for FileInfo {
                 "Empty",
                 |x: &FileInfo| {
                     if x.textual {
-                        &x.code
+                        &x.empty
                     } else {
                         &"-"
                     }
@@ -161,7 +161,7 @@ impl Table for FileInfo {
                 "Total",
                 |x: &FileInfo| {
                     if x.textual {
-                        &x.code
+                        &x.total
                     } else {
                         &"-"
                     }
