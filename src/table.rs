@@ -4,15 +4,15 @@ const BOX_VERT: &str = " │ ";
 const BOX_HORIZONTAL: &str = "─";
 const BOX_CROSS_LEFT: &str = " ├─";
 const BOX_CROSS: &str = "─┼─";
-const BOX_CROSS_RIGHT: &str = "─┤";
+const BOX_CROSS_RIGHT: &str = "─┤ ";
 
 const BOX_CROSS_LEFT_DOWN: &str = " ┌─";
 const BOX_CROSS_DOWN: &str = "─┬─";
-const BOX_CROSS_RIGHT_DOWN: &str = "─┐";
+const BOX_CROSS_RIGHT_DOWN: &str = "─┐ ";
 
 const BOX_CROSS_LEFT_UP: &str = " └─";
 const BOX_CROSS_UP: &str = "─┴─";
-const BOX_CROSS_RIGHT_UP: &str = "─┘";
+const BOX_CROSS_RIGHT_UP: &str = "─┘ ";
 
 // Display tables, the wanky way
 pub struct TableWrapper<T, It: Iterator<Item = T>> {
@@ -32,15 +32,14 @@ where
     V: Table<Key = U>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn draw_line_sep(
-            f: &mut std::fmt::Formatter<'_>,
+        fn line_sep(
             pads: &[usize],
             box_horizontal: &str,
             box_left: &str,
             box_mid: &str,
             box_right: &str,
-        ) -> std::fmt::Result {
-            let total: usize = pads.iter().sum::<usize>() + pads.len() + 2;
+        ) -> String {
+            let total: usize = pads.iter().sum::<usize>() + pads.len() + 1;
             let mut buf: Vec<&str> = vec![box_horizontal; total];
 
             let mut sum = 0;
@@ -50,9 +49,8 @@ where
                 buf[sum] = box_mid;
             }
             buf[sum] = box_right;
-            buf[sum + 1] = "\n";
 
-            f.write_str(&buf.into_iter().collect::<String>())
+            buf.into_iter().collect::<String>()
         }
 
         fn write_col<T>(
@@ -84,13 +82,16 @@ where
             pads.push(2 + entry.name.len().max(min_pad));
         }
 
-        draw_line_sep(
+        writeln!(
             f,
-            &pads,
-            BOX_HORIZONTAL,
-            BOX_CROSS_LEFT_DOWN,
-            BOX_CROSS_DOWN,
-            BOX_CROSS_RIGHT_DOWN,
+            "{}",
+            line_sep(
+                &pads,
+                BOX_HORIZONTAL,
+                BOX_CROSS_LEFT_DOWN,
+                BOX_CROSS_DOWN,
+                BOX_CROSS_RIGHT_DOWN,
+            )
         )?;
 
         write!(f, "{BOX_VERT}{: ^1$}", table_descriptor.key.name, pads[0])?;
@@ -99,13 +100,16 @@ where
         }
         writeln!(f, "{BOX_VERT}")?;
 
-        draw_line_sep(
+        writeln!(
             f,
-            &pads,
-            BOX_HORIZONTAL,
-            BOX_CROSS_LEFT,
-            BOX_CROSS,
-            BOX_CROSS_RIGHT,
+            "{}",
+            line_sep(
+                &pads,
+                BOX_HORIZONTAL,
+                BOX_CROSS_LEFT,
+                BOX_CROSS,
+                BOX_CROSS_RIGHT,
+            )
         )?;
 
         for x in it {
@@ -116,13 +120,16 @@ where
             writeln!(f, "{BOX_VERT}")?;
         }
 
-        draw_line_sep(
+        write!(
             f,
-            &pads,
-            BOX_HORIZONTAL,
-            BOX_CROSS_LEFT_UP,
-            BOX_CROSS_UP,
-            BOX_CROSS_RIGHT_UP,
+            "{}",
+            line_sep(
+                &pads,
+                BOX_HORIZONTAL,
+                BOX_CROSS_LEFT_UP,
+                BOX_CROSS_UP,
+                BOX_CROSS_RIGHT_UP,
+            )
         )?;
         Ok(())
     }

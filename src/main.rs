@@ -104,7 +104,7 @@ async fn main() -> std::io::Result<()> {
         .into_iter()
         .chain(std::iter::once((TableKey::Total, loc)));
 
-    println!("{}", TableWrapper::new(rows_iter));
+    print!("{}", TableWrapper::new(rows_iter));
     Ok(())
 }
 
