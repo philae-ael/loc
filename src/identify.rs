@@ -16,6 +16,7 @@ pub fn identify(path: &Path, debug: bool) -> Language {
         by_filename!(Language::CMake, "CMakeLists.txt");
         by_filename!(Language::Makefile, "Makefile");
         by_filename!(Language::Txt, "LICENSE");
+        by_filename!(Language::Txt, "Cargo.lock");
     }
 
     if let Some(extension) = path

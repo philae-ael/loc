@@ -26,6 +26,8 @@ pub enum Language {
     Html,
     Shell,
     Txt,
+    Slang,
+    Lockfile,
 }
 
 impl std::fmt::Display for Language {
@@ -55,6 +57,8 @@ impl std::fmt::Display for Language {
             Language::Shell => "Shell",
             Language::Ruby => "Ruby",
             Language::Liquid => "Liquid",
+            Language::Lockfile => "Lockfile",
+            Language::Slang => "Slang",
         };
         write!(f, "{this}")
     }
@@ -63,11 +67,13 @@ impl std::fmt::Display for Language {
 pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEstimator + Send>> {
     match language {
         Language::Rust => Some(Box::new(GenericWithComment::new("//"))),
-        Language::VueJs | Language::C | Language::Js | Language::Go | Language::Shader => {
-            Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"])))
-        }
-        Language::Python => Some(Box::new(GenericWithComment::new("#"))),
-        Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
+        Language::VueJs
+        | Language::Slang
+        | Language::C
+        | Language::Js
+        | Language::Go
+        | Language::Shader => Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"]))),
+        Language::Python | Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
         Language::Tex => Some(Box::new(GenericWithComment::new("%"))),
         Language::Markdown
         | Language::Makefile
@@ -83,6 +89,6 @@ pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEs
         | Language::Txt
         | Language::Shell
         | Language::Json => Some(Box::new(Generic)),
-        Language::Asset => None,
+        Language::Lockfile | Language::Asset => None,
     }
 }

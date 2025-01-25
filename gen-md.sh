@@ -4,10 +4,10 @@ gen ()
     printf "$(cat ./Readme-head.md)\n$(cargo run . 2>/dev/null)$(cat ./Readme-tail.md)" > ./Readme.md
 }
 
-while : 
+while :
 do
     gen
-    cur=$(sha256sum ./Readme.md) 
+    cur=$(sha256sum ./Readme.md)
     echo $cur $last
 
     if [[ "$cur" == "$last" ]] then
