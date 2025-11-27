@@ -157,7 +157,7 @@ pub struct TableDescriptorBuilder<T, Key> {
     key: TableEntry<Key>,
 }
 
-struct Lens<T>(Box<dyn (for<'a> Fn(&'a T) -> &'a dyn Display)>);
+struct Lens<T>(Box<dyn for<'a> Fn(&'a T) -> &'a dyn Display>);
 
 impl<T> Lens<T> {
     pub fn call<'s>(&self, t: &'s T) -> &'s dyn Display {

@@ -4,7 +4,8 @@ use crate::line_kind::{Generic, GenericWithComment, LineKindEstimator, Multiline
 pub enum Language {
     Rust,
     C,
-    Js,
+    Javascript,
+    Typescript,
     Json,
     Python,
     Generic,
@@ -28,6 +29,7 @@ pub enum Language {
     Txt,
     Slang,
     Lockfile,
+    Svelte,
 }
 
 impl std::fmt::Display for Language {
@@ -36,7 +38,8 @@ impl std::fmt::Display for Language {
             Language::Rust => "Rust",
             Language::C => "C/C++",
             Language::Generic => "Other",
-            Language::Js => "Javascript",
+            Language::Javascript => "Javascript",
+            Language::Typescript => "Typescript",
             Language::Json => "JSON",
             Language::Python => "Python",
             Language::Toml => "TOML",
@@ -59,6 +62,7 @@ impl std::fmt::Display for Language {
             Language::Liquid => "Liquid",
             Language::Lockfile => "Lockfile",
             Language::Slang => "Slang",
+            Language::Svelte => "Svelte",
         };
         write!(f, "{this}")
     }
@@ -70,8 +74,10 @@ pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEs
         Language::VueJs
         | Language::Slang
         | Language::C
-        | Language::Js
+        | Language::Javascript
+        | Language::Typescript
         | Language::Go
+        | Language::Svelte
         | Language::Shader => Some(Box::new(MultilineCommentAware::new("//", ["/*", "*/"]))),
         Language::Python | Language::Toml => Some(Box::new(GenericWithComment::new("#"))),
         Language::Tex => Some(Box::new(GenericWithComment::new("%"))),

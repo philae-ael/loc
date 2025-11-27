@@ -63,8 +63,6 @@ pub async fn file_info_from_path(
     ))
 }
 
-///  ---
-
 async fn read_line<'a, T: tokio::io::AsyncRead + std::marker::Unpin>(
     buf: &mut tokio::io::BufReader<T>,
     s: &'a mut String,
