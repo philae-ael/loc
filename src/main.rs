@@ -15,6 +15,10 @@ use anyhow::Context;
 use clap::Parser;
 use futures::StreamExt;
 use table::{Table, TableDescriptor, TableDescriptorBuilder, TableFormat};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Layer,
+};
 
 #[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
 pub enum SortBy {
@@ -43,11 +47,39 @@ struct Args {
     sort_by: SortBy,
     #[arg(short, long, default_value_t)]
     debug: bool,
+
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
+
+    let reg = tracing_subscriber::registry();
+
+    let filter = tracing_subscriber::filter::EnvFilter::builder()
+        .with_default_directive(LevelFilter::WARN.into())
+        .from_env_lossy();
+
+    let filter = match args.verbose {
+        0 => filter,
+        1 => filter.add_directive(LevelFilter::INFO.into()),
+        2 => filter.add_directive(LevelFilter::DEBUG.into()),
+        _ => filter.add_directive(LevelFilter::TRACE.into()),
+    };
+
+    let reg = reg.with(
+        tracing_subscriber::fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::uptime())
+            .with_span_events(FmtSpan::CLOSE)
+            .with_filter(filter),
+    );
+
+    reg.init();
+
+    tracing::debug!("Starting to walk the directory...");
+    tracing::debug!("Using path: {}", args.path.display());
 
     let walker = ignore::WalkBuilder::new(args.path)
         .hidden(true)

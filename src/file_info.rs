@@ -56,11 +56,10 @@ pub async fn file_info_from_path(
     debug: bool,
 ) -> std::io::Result<(FileInfo, Language)> {
     let language = identify(file, debug);
+    let file_infos = gen_file_info(file, make_line_kind_estimator(language)).await?;
 
-    Ok((
-        gen_file_info(file, make_line_kind_estimator(language)).await?,
-        language,
-    ))
+    tracing::trace!(?file, ?language, ?file_infos, "Generated file info");
+    Ok((file_infos, language))
 }
 
 async fn read_line<'a, T: tokio::io::AsyncRead + std::marker::Unpin>(
