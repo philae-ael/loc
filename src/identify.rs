@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{io::Read, path::Path};
 
 use crate::language::Language;
 
@@ -21,6 +21,8 @@ pub fn identify(path: &Path, debug: bool) -> Language {
     {
         match extension.as_str() {
             "c" | "h" | "cpp" | "hpp" => return Language::C,
+            "zon" => return Language::Zon,
+            "zig" => return Language::Zig,
             "vert" | "frag" | "glsl" => return Language::Shader,
             "rs" => return Language::Rust,
             "py" => return Language::Python,
@@ -46,6 +48,45 @@ pub fn identify(path: &Path, debug: bool) -> Language {
             | "woff2" | "o" | "bin" | "gltf" | "out" | "map" | "mp3" => return Language::Asset,
             "cmake" => return Language::CMake,
             _ => (),
+        }
+    }
+
+    // By shebang
+    const SHEBANGS: &[(&str, Language)] = &[
+        ("#!/bin/bash", Language::Shell),
+        ("#!/bin/sh", Language::Shell),
+        ("#!/usr/bin/env bash", Language::Shell),
+        ("#!/usr/bin/env sh", Language::Shell),
+        ("#!/usr/bin/env python", Language::Python),
+        ("#!/usr/bin/env python3", Language::Python),
+        ("#!/usr/bin/env node", Language::Javascript),
+        ("#!/usr/bin/env deno", Language::Typescript),
+    ];
+    const MAX_SHEBANG_LENGTH: usize = {
+        let mut max_length = 0;
+        let mut i = 0;
+        // Handroll this loop as const fn doesn't allow iterators or for loops??
+        loop {
+            if i >= SHEBANGS.len() {
+                break;
+            }
+            let shebang = SHEBANGS[i].0;
+            if shebang.len() > max_length {
+                max_length = shebang.len();
+            }
+            i += 1;
+        }
+        max_length
+    };
+    let mut buffer = [0u8; MAX_SHEBANG_LENGTH];
+    if let Ok(mut file) = std::fs::File::open(path) {
+        if let Ok(n) = file.read(&mut buffer) {
+            let content = std::str::from_utf8(&buffer[..n]).unwrap_or("");
+            for (shebang, language) in SHEBANGS {
+                if content.starts_with(shebang) {
+                    return *language;
+                }
+            }
         }
     }
 

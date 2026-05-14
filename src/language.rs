@@ -4,6 +4,8 @@ use crate::line_kind::{Generic, GenericWithComment, LineKindEstimator, Multiline
 pub enum Language {
     Rust,
     C,
+    Zig,
+    Zon,
     Javascript,
     Typescript,
     Json,
@@ -37,6 +39,8 @@ impl std::fmt::Display for Language {
         let this = match self {
             Language::Rust => "Rust",
             Language::C => "C/C++",
+            Language::Zig => "Zig",
+            Language::Zon => "Zon",
             Language::Generic => "Other",
             Language::Javascript => "Javascript",
             Language::Typescript => "Typescript",
@@ -70,7 +74,9 @@ impl std::fmt::Display for Language {
 
 pub fn make_line_kind_estimator(language: Language) -> Option<Box<dyn LineKindEstimator + Send>> {
     match language {
-        Language::Rust => Some(Box::new(GenericWithComment::new("//"))),
+        Language::Rust | Language::Zig | Language::Zon => {
+            Some(Box::new(GenericWithComment::new("//")))
+        }
         Language::VueJs
         | Language::Slang
         | Language::C
