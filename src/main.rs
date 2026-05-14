@@ -62,7 +62,7 @@ impl Display for Mode {
 #[derive(clap::Parser)]
 struct Args {
     path: PathBuf,
-    #[arg(short, long, default_value_t)]
+    #[arg(short, long = "sort-by", visible_alias = "sort", default_value_t)]
     sort: SortKey,
     #[arg(short, long, default_value_t)]
     debug: bool,
@@ -182,18 +182,25 @@ async fn main() -> std::io::Result<()> {
             }
             let mut rows: Vec<_> = loc_per_file
                 .into_iter()
-                .map(|(x, y)| (TableFileKey::Path(x), y))
+                .map(|(path, (info, language))| (TableFileKey::Path(path), info, language))
                 .collect();
             match args.sort {
-                SortKey::Language => rows.sort_by_key(|(_, (_, lang))| lang.to_string()),
-                SortKey::Code => rows.sort_by_key(|(_, (fileinfo, _))| -(fileinfo.code as isize)),
-                SortKey::Total => rows.sort_by(|(_, (fileinfo1, _)), (_, (fileinfo2, _))| {
-                    fileinfo2.total.cmp(&fileinfo1.total)
-                }),
-                SortKey::File => rows.sort_by_key(|(key, _)| key.to_string()),
+                SortKey::Language => rows.sort_by_key(|(_, _, language)| language.to_string()),
+                SortKey::Code => rows.sort_by_key(|(_, info, _)| -(info.code as isize)),
+                SortKey::Total => rows.sort_by_key(|(_, info, _)| -(info.total as isize)),
+                SortKey::File => rows.sort_by_key(|(key, _, _)| key.to_string()),
             };
 
-            println!("{}", TableWrapper::new::<TableFile>(rows.into_iter()));
+            let rows_iter = rows
+                .into_iter()
+                .map(|(key, info, language)| (key, TableFileValue::File { info, language }));
+
+            let rows_iter = rows_iter.chain(std::iter::once((
+                TableFileKey::Total,
+                TableFileValue::Total(loc_total),
+            )));
+
+            println!("{}", TableWrapper::new::<TableFile>(rows_iter));
         }
     }
 
@@ -210,6 +217,47 @@ impl Display for TableFileKey {
         match self {
             TableFileKey::Path(p) => write!(f, "{}", p),
             TableFileKey::Total => write!(f, "Total"),
+        }
+    }
+}
+
+pub enum TableFileValue {
+    File { info: FileInfo, language: Language },
+    Total(FileInfo),
+}
+impl TableFileValue {
+    fn display_code(&self) -> &dyn Display {
+        match self {
+            TableFileValue::File { info, .. } => get_or_default(info, &info.code),
+            TableFileValue::Total(info) => get_or_default(info, &info.code),
+        }
+    }
+
+    fn display_comments(&self) -> &dyn Display {
+        match self {
+            TableFileValue::File { info, .. } => get_or_default(info, &info.comments),
+            TableFileValue::Total(info) => get_or_default(info, &info.comments),
+        }
+    }
+
+    fn display_empty(&self) -> &dyn Display {
+        match self {
+            TableFileValue::File { info, .. } => get_or_default(info, &info.empty),
+            TableFileValue::Total(info) => get_or_default(info, &info.empty),
+        }
+    }
+
+    fn display_total(&self) -> &dyn Display {
+        match self {
+            TableFileValue::File { info, .. } => get_or_default(info, &info.total),
+            TableFileValue::Total(info) => get_or_default(info, &info.total),
+        }
+    }
+
+    fn display_language(&self) -> &dyn Display {
+        match self {
+            TableFileValue::File { language, .. } => language,
+            TableFileValue::Total(_) => &"-",
         }
     }
 }
@@ -238,30 +286,22 @@ fn get_or_default<'a>(fi: &'a FileInfo, val: &'a usize) -> &'a dyn Display {
 struct TableFile;
 impl Table for TableFile {
     type Key = TableFileKey;
-    type Value = (FileInfo, Language);
+    type Value = TableFileValue;
     fn describe() -> TableDescriptor<Self::Value, Self::Key> {
         TableDescriptorBuilder::column_key_with_format(
             "File",
             TableFormat::Left,
             |x: &TableFileKey| x,
         )
-        .column("Code", |(x, _): &(FileInfo, Language)| {
-            get_or_default(x, &x.code)
+        .column("Code", |value: &TableFileValue| value.display_code())
+        .column("Comments", |value: &TableFileValue| {
+            value.display_comments()
         })
-        .column("Comments", |(x, _): &(FileInfo, Language)| {
-            get_or_default(x, &x.comments)
+        .column("Empty", |value: &TableFileValue| value.display_empty())
+        .column("Total", |value: &TableFileValue| value.display_total())
+        .column_with_format("Language", TableFormat::Left, |value: &TableFileValue| {
+            value.display_language()
         })
-        .column("Empty", |(x, _): &(FileInfo, Language)| {
-            get_or_default(x, &x.empty)
-        })
-        .column("Total", |(x, _): &(FileInfo, Language)| {
-            get_or_default(x, &x.total)
-        })
-        .column_with_format(
-            "Language",
-            TableFormat::Left,
-            |(_, l): &(FileInfo, Language)| l,
-        )
         .build()
     }
 }
